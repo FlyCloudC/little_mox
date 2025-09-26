@@ -22,15 +22,26 @@ pub struct Func {
 let current_exps : Ref[Array[Exp]] = { val: [] }
 
 ///|
+fn push_exp(exp : Exp) -> Atom {
+  let exps = current_exps.val
+  defer exps.push(exp)
+  Var(exps.length())
+}
+
+///|
+fn Exp::map_atom(self : Exp, f : (Atom) -> Atom) -> Exp {
+  match self {
+    Add(a, b) => Add(f(a), f(b))
+    Mul(a, b) => Mul(f(a), f(b))
+  }
+}
+
+///|
 pub impl Add for Atom with add(a, b) {
   match (a, b) {
     (Data(a), Data(b)) => Data(a + b)
     (Data(0), x) | (x, Data(0)) => x
-    _ => {
-      let exps = current_exps.val
-      defer exps.push(Add(a, b))
-      Var(exps.length())
-    }
+    _ => push_exp(Add(a, b))
   }
 }
 
@@ -40,11 +51,7 @@ pub impl Mul for Atom with mul(a, b) {
     (Data(a), Data(b)) => Data(a * b)
     (Data(0), _) | (_, Data(0)) => Data(0)
     (Data(1), x) | (x, Data(1)) => x
-    _ => {
-      let exps = current_exps.val
-      defer exps.push(Mul(a, b))
-      Var(exps.length())
-    }
+    _ => push_exp(Mul(a, b))
   }
 }
 
@@ -56,9 +63,8 @@ pub impl Data for Atom with from_double(d) {
 ///|
 pub fn Func::compile(f : (FixedArray[Atom]) -> Atom, params_num : Int) -> Func {
   let args = FixedArray::makei(params_num, Parm(_))
-  let ret = f(args)
-  let equtions = current_exps.val
-  current_exps.val = []
+  let equtions = []
+  let ret = current_exps.protect(equtions, () => f(args))
   Func::{ params_num, equtions, ret }
 }
 
@@ -84,24 +90,15 @@ pub fn Func::simplify(self : Self) -> Self {
   }
   let ret = eval_atom(self.ret)
   while pq.pop() is Some(i) {
-    res.push(
-      match self.equtions[i] {
-        Add(a, b) => Add(eval_atom(a), eval_atom(b))
-        Mul(a, b) => Mul(eval_atom(a), eval_atom(b))
-      },
-    )
+    res.push(self.equtions[i].map_atom(eval_atom))
   }
-  res.rev_inplace()
   let add_length = a => match a {
     Data(_) | Parm(_) => a
     Var(i) => Var(i + res.length())
   }
   {
     params_num: self.params_num,
-    equtions: res.map(exp => match exp {
-      Add(a, b) => Add(add_length(a), add_length(b))
-      Mul(a, b) => Mul(add_length(a), add_length(b))
-    }),
+    equtions: res.rev_map(_.map_atom(add_length)),
     ret: add_length(ret),
   }
 }
@@ -120,8 +117,8 @@ pub fn[A : Data] Func::run(self : Self, args : FixedArray[A]) -> A {
   for eq in self.equtions {
     res.push(
       match eq {
-        Add(a, b) => eval_atom(a) + eval_atom(b)
-        Mul(a, b) => eval_atom(a) * eval_atom(b)
+        Add(a, b) => A::add(eval_atom(a), eval_atom(b))
+        Mul(a, b) => A::mul(eval_atom(a), eval_atom(b))
       },
     )
   }
