@@ -2,7 +2,7 @@
 pub enum Atom {
   Parm(Int)
   Var(Int)
-  Data(Double)
+  Const(Double)
 }
 
 ///|
@@ -39,8 +39,8 @@ fn Exp::map_atom(self : Exp, f : (Atom) -> Atom) -> Exp {
 ///|
 pub impl Add for Atom with add(a, b) {
   match (a, b) {
-    (Data(a), Data(b)) => Data(a + b)
-    (Data(0), x) | (x, Data(0)) => x
+    (Const(a), Const(b)) => Const(a + b)
+    (Const(0), x) | (x, Const(0)) => x
     _ => push_exp(Add(a, b))
   }
 }
@@ -48,16 +48,16 @@ pub impl Add for Atom with add(a, b) {
 ///|
 pub impl Mul for Atom with mul(a, b) {
   match (a, b) {
-    (Data(a), Data(b)) => Data(a * b)
-    (Data(0), _) | (_, Data(0)) => Data(0)
-    (Data(1), x) | (x, Data(1)) => x
+    (Const(a), Const(b)) => Const(a * b)
+    (Const(0), _) | (_, Const(0)) => Const(0)
+    (Const(1), x) | (x, Const(1)) => x
     _ => push_exp(Mul(a, b))
   }
 }
 
 ///|
 pub impl Data for Atom with from_double(d) {
-  Data(d)
+  Const(d)
 }
 
 ///|
@@ -70,52 +70,52 @@ pub fn Func::compile(f : (FixedArray[Atom]) -> Atom, params_num : Int) -> Func {
 
 ///|
 pub fn Func::simplify(self : Self) -> Self {
-  let res = []
-  let pq = @priority_queue.new()
-  let id = FixedArray::make(self.equtions.length(), None)
-  let mut cur_id = 0
-  let eval_atom = a => match a {
-    Data(_) | Parm(_) => a
+  let rev_equtions = []
+  let reachable_var_ids = @priority_queue.new()
+  let new_vars = FixedArray::make(self.equtions.length(), None)
+  let mut next_id = -1
+  let to_new_var = a => match a {
+    Const(_) | Parm(_) => a
     Var(x) =>
-      match id[x] {
+      match new_vars[x] {
         Some(x) => x
         None => {
-          pq.push(x)
-          cur_id -= 1
-          let r = Var(cur_id)
-          id[x] = Some(r)
-          r
+          reachable_var_ids.push(x)
+          let new_var = Var(next_id)
+          next_id -= 1
+          new_vars[x] = Some(new_var)
+          new_var
         }
       }
   }
-  let ret = eval_atom(self.ret)
-  while pq.pop() is Some(i) {
-    res.push(self.equtions[i].map_atom(eval_atom))
+  let ret = to_new_var(self.ret)
+  while reachable_var_ids.pop() is Some(i) {
+    rev_equtions.push(self.equtions[i].map_atom(to_new_var))
   }
   let add_length = a => match a {
-    Data(_) | Parm(_) => a
-    Var(i) => Var(i + res.length())
+    Const(_) | Parm(_) => a
+    Var(i) => Var(i + rev_equtions.length())
   }
   {
     params_num: self.params_num,
-    equtions: res.rev_map(_.map_atom(add_length)),
+    equtions: rev_equtions.rev_map(_.map_atom(add_length)),
     ret: add_length(ret),
   }
 }
 
 ///|
 pub fn[A : Data] Func::run(self : Self, args : FixedArray[A]) -> A {
-  let res = []
+  let vals = []
   fn eval_atom(a : Atom) -> A {
     match a {
-      Var(i) => res[i]
+      Var(i) => vals[i]
       Parm(i) => args[i]
-      Data(d) => A::from_double(d)
+      Const(d) => A::from_double(d)
     }
   }
 
   for eq in self.equtions {
-    res.push(
+    vals.push(
       match eq {
         Add(a, b) => A::add(eval_atom(a), eval_atom(b))
         Mul(a, b) => A::mul(eval_atom(a), eval_atom(b))
@@ -143,7 +143,7 @@ pub impl Show for Atom with output(self, logger) {
   match self {
     Parm(i) => logger..write_char('p')..write_object(i)
     Var(i) => logger..write_char('x')..write_object(i)
-    Data(d) => logger.write_object(d)
+    Const(d) => logger.write_object(d)
   }
 }
 
