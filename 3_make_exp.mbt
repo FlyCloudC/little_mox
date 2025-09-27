@@ -1,3 +1,7 @@
+// ------------------------------------
+// |               type               |
+// ------------------------------------
+
 ///|
 pub enum Atom {
   Parm(Int)
@@ -18,6 +22,10 @@ pub struct Func {
   ret : Atom
 }
 
+// ------------------------------------
+// |              effect              |
+// ------------------------------------
+
 ///|
 let current_exps : Ref[Array[Exp]] = { val: [] }
 
@@ -28,13 +36,9 @@ fn push_exp(exp : Exp) -> Atom {
   Var(exps.length())
 }
 
-///|
-fn Exp::map_atom(self : Exp, f : (Atom) -> Atom) -> Exp {
-  match self {
-    Add(a, b) => Add(f(a), f(b))
-    Mul(a, b) => Mul(f(a), f(b))
-  }
-}
+// ------------------------------------
+// |            impl Data             |
+// ------------------------------------
 
 ///|
 pub impl Add for Atom with add(a, b) {
@@ -58,6 +62,18 @@ pub impl Mul for Atom with mul(a, b) {
 ///|
 pub impl Data for Atom with from_double(d) {
   Const(d)
+}
+
+// ------------------------------------
+// |               func               |
+// ------------------------------------
+
+///|
+fn Exp::map_atom(self : Exp, f : (Atom) -> Atom) -> Exp {
+  match self {
+    Add(a, b) => Add(f(a), f(b))
+    Mul(a, b) => Mul(f(a), f(b))
+  }
 }
 
 ///|
@@ -134,8 +150,9 @@ pub fn Func::compile_1(f : (Atom) -> Atom) -> Func {
 pub fn[A : Data] Func::run_1(self : Self, arg : A) -> A {
   self.run([arg])
 }
+
 // ------------------------------------
-// |               Show               |
+// |            impl Show             |
 // ------------------------------------
 
 ///|

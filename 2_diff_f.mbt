@@ -1,10 +1,16 @@
-// 前向模式微分
+// ------------------------------------
+// |               type               |
+// ------------------------------------
 
 ///|
 struct Dual[A] {
   val : A
   tan : A
 } derive(Show)
+
+// ------------------------------------
+// |            impl Data             |
+// ------------------------------------
 
 ///|
 pub impl[A : Add] Add for Dual[A] with add(a, b) {
@@ -20,6 +26,10 @@ pub impl[A : Add + Mul] Mul for Dual[A] with mul(a, b) {
 pub impl[A : Data] Data for Dual[A] with from_double(d) {
   { val: A::from_double(d), tan: A::from_double(0) }
 }
+
+// ------------------------------------
+// |               func               |
+// ------------------------------------
 
 ///|
 pub fn[A : Data] jvp(
