@@ -30,6 +30,13 @@ pub struct Func {
 let current_exps : Ref[Array[Exp]] = { val: [] }
 
 ///|
+fn[A] with_exps(f : () -> A) -> (Array[Exp], A) {
+  let exps = []
+  let a = current_exps.protect(exps, f)
+  (exps, a)
+}
+
+///|
 fn push_exp(exp : Exp) -> Atom {
   let exps = current_exps.val
   defer exps.push(exp)
@@ -79,8 +86,7 @@ fn Exp::map_atom(self : Exp, f : (Atom) -> Atom) -> Exp {
 ///|
 pub fn Func::compile(f : (FixedArray[Atom]) -> Atom, params_num : Int) -> Func {
   let args = FixedArray::makei(params_num, Parm(_))
-  let equtions = []
-  let ret = current_exps.protect(equtions, () => f(args))
+  let (equtions, ret) = with_exps(() => f(args))
   Func::{ params_num, equtions, ret }
 }
 
