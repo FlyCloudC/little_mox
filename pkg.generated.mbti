@@ -2,9 +2,9 @@
 package "FlyCloudC/little_mox"
 
 // Values
-fn[A : Data] diff((Dual[A]) -> Dual[A]) -> (A) -> A
+pub fn[A : Data] diff((Dual[A]) -> Dual[A]) -> (A) -> A
 
-fn[A : Data] jvp((Dual[A]) -> Dual[A], A, tan? : A) -> Dual[A]
+pub fn[A : Data] jvp((Dual[A]) -> Dual[A], A, tan? : A) -> Dual[A]
 
 // Errors
 
@@ -12,34 +12,33 @@ fn[A : Data] jvp((Dual[A]) -> Dual[A], A, tan? : A) -> Dual[A]
 pub enum Atom {
   Parm(Int)
   Var(Int)
-  Data(Double)
+  Const(Double)
 }
-impl Data for Atom
-impl Add for Atom
-impl Mul for Atom
-impl Show for Atom
+pub impl Data for Atom
+pub impl Add for Atom
+pub impl Mul for Atom
+pub impl Show for Atom
 
 type Dual[A]
-impl[A : Data] Data for Dual[A]
-impl[A : Add] Add for Dual[A]
-impl[A : Add + Mul] Mul for Dual[A]
-impl[A : Show] Show for Dual[A]
+pub impl[A : Data] Data for Dual[A]
+pub impl[A : Add] Add for Dual[A]
+pub impl[A : Add + Mul] Mul for Dual[A]
+pub impl[A : Show] Show for Dual[A]
 
 type Exp
-impl Show for Exp
+pub impl Show for Exp
 
 pub struct Func {
   params_num : Int
   equtions : Array[Exp]
   ret : Atom
 }
-fn Func::build((FixedArray[Atom]) -> Atom, Int) -> Self
-#alias(compile)
-fn Func::build_1((Atom) -> Atom) -> Self
-fn[A : Data] Func::run(Self, FixedArray[A]) -> A
-fn[A : Data] Func::run_1(Self, A) -> A
-fn Func::simplify(Self) -> Self
-impl Show for Func
+pub fn Func::compile((FixedArray[Atom]) -> Atom, Int) -> Self
+pub fn Func::compile_1((Atom) -> Atom) -> Self
+pub fn[A : Data] Func::run(Self, FixedArray[A]) -> A
+pub fn[A : Data] Func::run_1(Self, A) -> A
+pub fn Func::simplify(Self) -> Self
+pub impl Show for Func
 
 // Type aliases
 
@@ -48,5 +47,5 @@ pub(open) trait Data : Add + Mul {
   from_double(Double) -> Self
   from_int(Int) -> Self = _
 }
-impl Data for Double
+pub impl Data for Double
 

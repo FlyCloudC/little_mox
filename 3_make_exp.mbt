@@ -30,17 +30,17 @@ pub struct Func {
 let current_exps : Ref[Array[Exp]] = { val: [] }
 
 ///|
-fn[A] with_exps(f : () -> A) -> (Array[Exp], A) {
+fn[A] with_exps(f : (Array[Exp]) -> A) -> A {
   let exps = []
-  let a = current_exps.protect(exps, f)
-  (exps, a)
+  let a = current_exps.protect(exps, () => f(exps))
+  a
 }
 
 ///|
 fn push_exp(exp : Exp) -> Atom {
   let exps = current_exps.val
-  defer exps.push(exp)
-  Var(exps.length())
+  exps.push(exp)
+  Var(exps.length() - 1)
 }
 
 // ------------------------------------
@@ -85,9 +85,8 @@ fn Exp::map_atom(self : Exp, f : (Atom) -> Atom) -> Exp {
 
 ///|
 pub fn Func::compile(f : (FixedArray[Atom]) -> Atom, params_num : Int) -> Func {
-  let args = FixedArray::makei(params_num, Parm(_))
-  let (equtions, ret) = with_exps(() => f(args))
-  Func::{ params_num, equtions, ret }
+  let args = FixedArray::makei(params_num, i => Parm(i))
+  with_exps(equtions => Func::{ params_num, equtions, ret: f(args) })
 }
 
 ///|
@@ -96,31 +95,35 @@ pub fn Func::simplify(self : Self) -> Self {
   let reachable_var_ids = @priority_queue.new()
   let new_vars = FixedArray::make(self.equtions.length(), None)
   let mut next_id = -1
-  let to_new_var = a => match a {
-    Const(_) | Parm(_) => a
-    Var(x) =>
-      match new_vars[x] {
-        Some(x) => x
-        None => {
-          reachable_var_ids.push(x)
-          let new_var = Var(next_id)
-          next_id -= 1
-          new_vars[x] = Some(new_var)
-          new_var
+  let to_new_var = a => {
+    match a {
+      Const(_) | Parm(_) => a
+      Var(x) =>
+        match new_vars[x] {
+          Some(x) => x
+          None => {
+            reachable_var_ids.push(x)
+            let new_var = Var(next_id)
+            next_id -= 1
+            new_vars[x] = Some(new_var)
+            new_var
+          }
         }
-      }
+    }
   }
   let ret = to_new_var(self.ret)
   while reachable_var_ids.pop() is Some(i) {
     rev_equtions.push(self.equtions[i].map_atom(to_new_var))
   }
-  let add_length = a => match a {
-    Const(_) | Parm(_) => a
-    Var(i) => Var(i + rev_equtions.length())
+  let add_length = a => {
+    match a {
+      Const(_) | Parm(_) => a
+      Var(i) => Var(i + rev_equtions.length())
+    }
   }
   {
     params_num: self.params_num,
-    equtions: rev_equtions.rev_map(_.map_atom(add_length)),
+    equtions: rev_equtions.rev_map(expr => expr.map_atom(add_length)),
     ret: add_length(ret),
   }
 }
@@ -164,8 +167,8 @@ pub fn[A : Data] Func::run_1(self : Self, arg : A) -> A {
 ///|
 pub impl Show for Atom with output(self, logger) {
   match self {
-    Parm(i) => logger..write_char('p')..write_object(i)
-    Var(i) => logger..write_char('x')..write_object(i)
+    Parm(i) => logger..write_char('p').write_object(i)
+    Var(i) => logger..write_char('x').write_object(i)
     Const(d) => logger.write_object(d)
   }
 }
@@ -173,8 +176,8 @@ pub impl Show for Atom with output(self, logger) {
 ///|
 pub impl Show for Exp with output(self, logger) {
   match self {
-    Add(a, b) => logger..write_object(a)..write_string(" + ")..write_object(b)
-    Mul(a, b) => logger..write_object(a)..write_string(" * ")..write_object(b)
+    Add(a, b) => logger..write_object(a)..write_string(" + ").write_object(b)
+    Mul(a, b) => logger..write_object(a)..write_string(" * ").write_object(b)
   }
 }
 
@@ -182,7 +185,7 @@ pub impl Show for Exp with output(self, logger) {
 pub impl Show for Func with output(self, logger) {
   match self.params_num {
     0 => logger.write_string("()")
-    1 => logger..write_object(Parm(0))
+    1 => logger.write_object(Parm(0))
     _ => {
       logger.write_char('(')
       logger.write_object(Parm(0))
@@ -194,7 +197,7 @@ pub impl Show for Func with output(self, logger) {
   }
   logger.write_string(" => ")
   match self.equtions {
-    [] => logger..write_object(self.ret)
+    [] => logger.write_object(self.ret)
     eqs => {
       logger.write_string("{")
       for i, e in eqs {
@@ -202,9 +205,9 @@ pub impl Show for Func with output(self, logger) {
         ..write_string("\n  ")
         ..write_object(Var(i))
         ..write_string(" = ")
-        ..write_object(e)
+        .write_object(e)
       }
-      logger..write_string("\n  ")..write_object(self.ret)..write_string("\n}")
+      logger..write_string("\n  ")..write_object(self.ret).write_string("\n}")
     }
   }
 }

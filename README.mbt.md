@@ -6,7 +6,8 @@ This is a library that demonstrates the use of generics in automatic differentia
 
 Let's define a function `f` that takes an `A` and returns an `A` for all `A : Data`.
 
-```mbt
+```mbt check
+///|
 fn[A : Data] f(x : A) -> A {
   x * (x + A::from_int(3))
 }
@@ -14,7 +15,8 @@ fn[A : Data] f(x : A) -> A {
 
 To compute the derivative of `f`, use `diff`.
 
-```mbt
+```mbt check
+///|
 test "diff" {
   let f_d = f |> diff
   inspect(f_d(2.0), content="7")
@@ -23,7 +25,8 @@ test "diff" {
 
 Note that `diff` takes a function that takes a generic type `A : Data` and returns a value of the same type. So we can compute the derivative of the derivative of `f` (i.e. the second derivative) by using `diff(diff(f))`.
 
-```mbt
+```mbt nocheck
+///|
 test "diff then diff" {
   let f_d_d = f |> diff |> diff
   inspect(f_d_d(2.0), content="2")
@@ -32,7 +35,8 @@ test "diff then diff" {
 
 The type `Func` represents a compiled function. It can be considered as a list of equations.
 
-```mbt
+```mbt check
+///|
 test "compile" {
   let f_c : Func = f |> Func::compile_1
   assert_eq(f_c.run_1(2.0), f(2.0))
@@ -51,9 +55,11 @@ test "compile" {
 
 We can also compile an derivatived function.
 
-```mbt
+```mbt check
+///|
 let f_d_c : Func = f |> diff |> Func::compile_1
 
+///|
 test "diff then compile" {
   inspect(
     f_d_c,
@@ -69,11 +75,13 @@ test "diff then compile" {
 }
 ```
 
-And derivative an compiled function, because `f_d_c.run_1(_)` has type `(A) -> A` for all `A : Data`.
+And derivative an compiled function, because `x => f_d_c.run_1(x)` has type `(A) -> A` for all `A : Data`.
 
-```mbt
-let f_d_c_d_c : Func = f_d_c.run_1(_) |> diff |> Func::compile_1
+```mbt check
+///|
+let f_d_c_d_c : Func = (x => f_d_c.run_1(x)) |> diff |> Func::compile_1
 
+///|
 test "diff then compile then diff then compile" {
   inspect(
     f_d_c_d_c,
@@ -92,7 +100,8 @@ test "diff then compile then diff then compile" {
 
 One last thing is simplifying the equations list.
 
-```mbt
+```mbt check
+///|
 test "simplify" {
   inspect(
     f_d_c.simplify(),
