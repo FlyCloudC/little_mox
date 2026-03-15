@@ -190,7 +190,7 @@ pub impl Show for Func with output(self, logger) {
       logger.write_char('(')
       logger.write_object(Parm(0))
       for i in 1..<self.params_num {
-        logger.write_object(Parm(i))
+        logger..write_string(", ").write_object(Parm(i))
       }
       logger.write_char(')')
     }
